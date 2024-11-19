@@ -1,19 +1,16 @@
 # Using K8ssandra to run Cassandra 5
 This repository contains a runbook to set up a kind K8s cluster and deploy Cassandra 5 using K8ssandra and cass-operator.
+
 ## Add the K8ssandra helm repo
 ```bash
 helm repo add k8ssandra https://helm.k8ssandra.io/stable
 helm repo update
 ```
 
-## Clone the K8ssandra operator
+## Clone the K8ssandra operator and setup a local kind cluster (1 control plane and 4 worker nodes)
 ```bash
 git clone https://github.com/k8ssandra/k8ssandra-operator.git
 cd k8ssandra-operator
-```
-
-## Setup a local kind cluster with 1 control plane and 4 worker nodes
-```bash
 scripts/setup-kind-multicluster.sh --clusters 1 --kind-worker-nodes 4
 ```
 
@@ -189,6 +186,29 @@ Connected to demo at 10.244.1.5:9042
 Use HELP for help.
 ```
 
+## Tear down the Cassandra cluster
+```bash
+kubectl delete -n k8ssandra-operator -f k8c1.yml
+kubectl get pods -n k8ssandra-operator
+```
+Output:
+```text
+NAME                                               READY   STATUS    RESTARTS   AGE
+k8ssandra-operator-6fc9c77c68-j6m8g                1/1     Running   0          3h43m
+k8ssandra-operator-cass-operator-d54556f7c-lg6gs   1/1     Running   0          3h43m
+```
+
+# Deploy using Helm Chart
+Remove `initContainers` from `k8ssandra-cluster/templates/k8ssandracluster.yaml`
+Change `serverVersion` to `5.0.2` in `k8ssandra-cluster/values.yaml`
+
+```bash
+git clone https://github.com/k8ssandra/k8ssandra-cluster.git
+helm install k8ssandra-cluster ./k8ssandra-cluster -f ./k8ssandra-cluster/values.yaml
+kubectl get pods
+kubectl delete pod k8ssandra-cluster-dc1-default-sts-0
+```
+
 # Prerequisites
 
 ## Install kind as a local kubernetes cluster
@@ -221,3 +241,38 @@ brew install gnu-getopt
 echo 'export PATH="/opt/homebrew/opt/gnu-getopt/bin:$PATH"' >> /Users/michel.deru/.zshrc
 source ~/.zshrc
 ```
+
+# Helpful debug commands
+
+## Logging
+```bash
+kubectl describe k8cs demo -n k8ssandra-operator
+kubectl logs -n k8ssandra-operator k8ssandra-operator-cass-operator-d54556f7c-lg6gs
+kubectl logs -n k8ssandra-operator k8ssandra-operator-7f76579f94-7s2tw
+kubectl logs -n k8ssandra-operator k8ssandra-cluster-dc1-default-sts-0 -c cassandra
+kubectl logs -n k8ssandra-operator k8ssandra-cluster-dc1-default-sts-0 -c server-system-logger
+```
+
+## List all pods and containers in all namespaces
+```bash
+kubectl get pods -A -o jsonpath="{range .items[*]}{.metadata.namespace}{':'}{.metadata.name}{': '}{range .spec.containers[*]}{.name}{' '}{end}{'\n'}{end}"
+```
+
+## Bash into a specific pod
+```bash
+kubectl exec -it k8ssandra-cluster-dc1-default-sts-0 -n k8ssandra-operator -- /bin/bash
+```
+
+## Show CRD definitions
+```bash
+kubectl get cassandradatacenters 
+kubectl describe cassandradatacenter dc1
+```
+
+## Show CRD details
+```bash
+kubectl get crd
+kubectl get crd cassandradatacenters.cassandra.datastax.com -o yaml
+```
+
+
