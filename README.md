@@ -14,6 +14,14 @@ scripts/setup-kind-multicluster.sh --clusters 1 --kind-worker-nodes 4
 ### List the nodes in the cluster
 kubectl get nodes
 
+Output:
+NAME                        STATUS   ROLES                  AGE   VERSION
+k8ssandra-0-control-plane   Ready    control-plane,master   80s   v1.22.4
+k8ssandra-0-worker          Ready    <none>                 42s   v1.22.4
+k8ssandra-0-worker2         Ready    <none>                 42s   v1.22.4
+k8ssandra-0-worker3         Ready    <none>                 42s   v1.22.4
+k8ssandra-0-worker4         Ready    <none>                 42s   v1.22.4
+
 ## Add the cert-manager helm repo
 helm repo add jetstack https://charts.jetstack.io
 helm repo update
@@ -27,11 +35,22 @@ helm install cert-manager jetstack/cert-manager --namespace cert-manager --creat
 ### List the pods in the cert-manager namespace
 kubectl get pods --namespace cert-manager
 
+Output:
+NAME                                       READY   STATUS    RESTARTS   AGE
+cert-manager-5cc5dcf776-bmz4z              1/1     Running   0          31m
+cert-manager-cainjector-7dcc56c84f-dm8hf   1/1     Running   0          31m
+cert-manager-webhook-5dcf8fd964-kxfbl      1/1     Running   0          31m
+
 ## Deploy the K8ssandra operator in a dedicated namespace
 helm install k8ssandra-operator k8ssandra/k8ssandra-operator -n k8ssandra-operator --create-namespace
 
 ## Verify the operator pods are running
 kubectl get pods -n k8ssandra-operator
+
+Output:
+NAME                                                READY   STATUS    RESTARTS   AGE
+k8ssandra-operator-7f76579f94-7s2tw                 1/1     Running   0          60s
+k8ssandra-operator-cass-operator-794f65d9f4-j9lm5   1/1     Running   0          60s
 
 ## Deploy a K8ssandra cluster 🤩
 We use a custom values.yaml file to deploy a 3 node cluster in one datacenter.
@@ -70,8 +89,21 @@ kubectl apply -n k8ssandra-operator -f ../k8c1.yml
 ### Verify pod deployment
 kubectl get pods -n k8ssandra-operator
 
+Output:
+NAME                                                   READY   STATUS             RESTARTS       AGE
+demo-dc1-default-stargate-deployment-b6f6969d4-kmthp   0/1     CrashLoopBackOff   11 (33s ago)   23m
+demo-dc1-default-sts-0                                 2/2     Running            0              27m
+demo-dc1-default-sts-1                                 2/2     Running            0              27m
+demo-dc1-default-sts-2                                 2/2     Running            0              27m
+k8ssandra-operator-6fc9c77c68-j6m8g                    1/1     Running            0              31m
+k8ssandra-operator-cass-operator-d54556f7c-lg6gs       1/1     Running            0              31m
+
 ### Verify K8ssandraCluster deployment
 kubectl get k8cs -n k8ssandra-operator
+
+Output:
+NAME   ERROR
+demo   None
 
 ### Describe the K8ssandraCluster
 kubectl describe k8cs demo -n k8ssandra-operator
@@ -86,6 +118,16 @@ echo $CASS_PASSWORD
 
 ### Verify cluster status
 kubectl exec -it demo-dc1-default-sts-0 -n k8ssandra-operator -c cassandra -- nodetool -u $CASS_USERNAME -pw $CASS_PASSWORD status
+
+Output:
+Datacenter: dc1
+===============
+Status=Up/Down
+|/ State=Normal/Leaving/Joining/Moving
+--  Address     Load        Tokens  Owns (effective)  Host ID                               Rack   
+UN  10.244.1.5  150.03 KiB  16      100.0%            ed9795cd-665a-41b3-bdd0-85020e2ec88e  default
+UN  10.244.2.4  114.67 KiB  16      100.0%            2e07f986-2cf0-4b14-a764-d7dc3cdc2610  default
+UN  10.244.3.4  114.74 KiB  16      100.0%            622eab4a-6358-4d29-8e7a-1fc397bd3ceb  default
 
 ### Open a shell in the cassandra pod
 kubectl exec -it demo-dc1-default-sts-0 -n k8ssandra-operator -- /bin/bash
