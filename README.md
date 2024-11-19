@@ -11,7 +11,7 @@ cd k8ssandra-operator
 ## Setup a local kind cluster with 1 control plane and 4 worker nodes
 scripts/setup-kind-multicluster.sh --clusters 1 --kind-worker-nodes 4
 
-## List the nodes in the cluster
+### List the nodes in the cluster
 kubectl get nodes
 
 ## Add the cert-manager helm repo
@@ -24,7 +24,7 @@ kubectl config use-context kind-k8ssandra-0
 ## Install cert-manager
 helm install cert-manager jetstack/cert-manager --namespace cert-manager --create-namespace --set installCRDs=true
 
-## List the pods in the cert-manager namespace
+### List the pods in the cert-manager namespace
 kubectl get pods --namespace cert-manager
 
 ## Deploy the K8ssandra operator in a dedicated namespace
@@ -33,7 +33,7 @@ helm install k8ssandra-operator k8ssandra/k8ssandra-operator -n k8ssandra-operat
 ## Verify the operator pods are running
 kubectl get pods -n k8ssandra-operator
 
-## Deploy a K8ssandra cluster
+## Deploy a K8ssandra cluster 🤩
 We use a custom values.yaml file to deploy a 3 node cluster in one datacenter.
 `k8c1.yml`:
 ```yaml
@@ -64,19 +64,19 @@ spec:
           heapSize: 256M
 ```
 
-## Create the K8ssandra cluster
+### Create the K8ssandra cluster
 kubectl apply -n k8ssandra-operator -f ../k8c1.yml
 
-## Verify pod deployment
+### Verify pod deployment
 kubectl get pods -n k8ssandra-operator
 
-## Verify K8ssandraCluster deployment
+### Verify K8ssandraCluster deployment
 kubectl get k8cs -n k8ssandra-operator
 
-## Describe the K8ssandraCluster
+### Describe the K8ssandraCluster
 kubectl describe k8cs demo -n k8ssandra-operator
 
-## Extract credentials from the K8ssandraCluster
+### Extract credentials from the K8ssandraCluster
 CASS_USERNAME=$(kubectl get secret demo-superuser -n k8ssandra-operator -o=jsonpath='{.data.username}' | base64 --decode)
 echo $CASS_USERNAME
 -> demo-superuser
@@ -84,10 +84,10 @@ CASS_PASSWORD=$(kubectl get secret demo-superuser -n k8ssandra-operator -o=jsonp
 echo $CASS_PASSWORD
 -> kEFiYwQ-AbWpEumJ5A4H
 
-## Verify cluster status
+### Verify cluster status
 kubectl exec -it demo-dc1-default-sts-0 -n k8ssandra-operator -c cassandra -- nodetool -u $CASS_USERNAME -pw $CASS_PASSWORD status
 
-## Open a shell in the cassandra pod
+### Open a shell in the cassandra pod
 kubectl exec -it demo-dc1-default-sts-0 -n k8ssandra-operator -- /bin/bash
 nodetool -u demo-superuser -pw kEFiYwQ-AbWpEumJ5A4H status
 cqlsh -u demo-superuser -p kEFiYwQ-AbWpEumJ5A4H 10.244.1.5
